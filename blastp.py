@@ -32,4 +32,4 @@ for protein_file in protein_files:
     os.system(blast)
 # os.system('command') runs command in bash
 
-# "blast -query(in_file) -out(out_file) -evalue 1e-2 -word_size 6"
+
