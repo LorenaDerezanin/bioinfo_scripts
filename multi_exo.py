@@ -31,8 +31,8 @@ for protein_file in protein_files:
     f_out_path = os.path.join(args.output, gene_name(protein_file) + "_exo")
     f_in_path = os.path.join(path, protein_file)
     exo = "exonerate -m protein2genome -q %s -t %s --bestn %s --dpmemory %s -s %s -V 3 -Q protein -T dna " \
-          "--showalignment yes --showtargetgff yes > -o %s" % (f_in_path, args.target, args.bestn, args.dpm,
-                                                               args.score, f_out_path)
+          "--showalignment yes --showtargetgff yes >" % (f_in_path, args.target, args.bestn, args.dpm, args.score)\
+          + f_out_path
     os.system(exo)
 
 
