@@ -45,7 +45,7 @@ mv *_hits RECIPROCAL_HITS
 echo "7) Predicted utg-ORFs aligned to UniProt database" \
 	>> ~/Progressreports_2015/Progress_$FISH
 
-##DETERMINE CONFIRMED HITS AND GET ANNOTATION 
+##DETERMINE CONFIRMED HITS AND GET ANNOTATION
 for f in RECIPROCAL_HITS/*; do \
 	awk '$11 < 1e-10 {print $1,"\t",$11,"\t",$2}' \
 	> ${f%_reciprocal_utg_hits}"_annotation" $f && \
