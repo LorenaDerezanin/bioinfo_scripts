@@ -7,9 +7,11 @@ PROGRESS_REPORTS=$WORKING_DIR_PATH/gadus_CA/gene_mining_results/Progress_gadus_3
 
 ##PREDICT ORF FOR ALL GENES IN EACH UNITIG
 for f in FASTA/*_splitted_utg_reads_*; do \
-	genscan \
-	HumanIso.smat $f > \
-	$f"_" \
+	hmmer2go getorf \
+	-i $f > \
+	-o $f"_" \
+    --verbose \
+    -n 4 \
 	; done
 cd FASTA
 mkdir ORFs
