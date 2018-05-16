@@ -28,6 +28,9 @@ mv *_ORFs ORFs_FASTA
 echo "6) Utg-ORFs predicted and parsed" \
 	>> PROGRESS_REPORTS
 
+# uniprot_sprot.fasta.gz (last update on 25.04.18) downloaded on 15.5.18
+# uniprot_trembl.fasta.gz (last update on 25.04.18) downloaded on 15.5.18
+
 ##ALIGN SEQUENCE TO UNIPROT DATABASE
 for f in ORFs_FASTA/*; do \
 	blastp \
