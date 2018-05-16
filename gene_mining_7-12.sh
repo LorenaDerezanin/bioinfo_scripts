@@ -26,7 +26,7 @@ cd ORFs
 mkdir ORFs_FASTA
 mv *_ORFs ORFs_FASTA
 echo "6) Utg-ORFs predicted and parsed" \
-	>> ~/Progressreports_2015/Progress_$FISH
+	>> PROGRESS_REPORTS
 
 ##ALIGN SEQUENCE TO UNIPROT DATABASE
 for f in ORFs_FASTA/*; do \
@@ -43,7 +43,7 @@ cd ORFs_FASTA
 mkdir RECIPROCAL_HITS
 mv *_hits RECIPROCAL_HITS
 echo "7) Predicted utg-ORFs aligned to UniProt database" \
-	>> ~/Progressreports_2015/Progress_$FISH
+	>> PROGRESS_REPORTS
 
 ##DETERMINE CONFIRMED HITS AND GET ANNOTATION
 for f in RECIPROCAL_HITS/*; do \
@@ -80,10 +80,10 @@ for f in ONELINERS/*_beautified; do \
 	>> List_of_genes_found_in_utgs \
 	; done
 echo "8) Genes present in UTGs, based on reciprocal hits (e-value < 1e-10):" \
-	>> ~/Progressreports_2015/Progress_$FISH
+	>> PROGRESS_REPORTS
 for f in ONELINERS/*_beautified; do \
 	cat $f | \
 	awk '/=/{print$0}' \
-	>> ~/Progressreports_2015/Progress_$FISH \
+	>> PROGRESS_REPORTS \
 	; done
 
