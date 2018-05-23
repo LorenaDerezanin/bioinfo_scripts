@@ -59,4 +59,4 @@ for f in FASTA/*; do \
 
 	# time ~38 min (23.04.2018)
 	# time with parallel fastagrep, 16 CPUs assigned ~ 4,4 min (24.04.2018)
-	# it didn't use all the CPUs assigned
+	# didn't use all the CPUs assigned
