@@ -14,38 +14,38 @@ for f in FASTA/*_splitted_utg_reads_*; do \
     -n 4 \
 	; done
 cd FASTA
-mkdir ORFs
-mv *_ ORFs
+mkdir 2_ORFs
+mv *_ 2_ORFs
 
-##EXTRACT UNITIG-ORFs SEQUENCE
-for f in ORFs/*; do \
+##EXTRACT UNITIG-2_ORFs SEQUENCE
+for f in 2_ORFs/*; do \
 	extract_fasta $f \
-	>> ${f%_splitted_utg_reads_???}"_merged_ORFs" \
+	>> ${f%_splitted_utg_reads_???}"_merged_2_ORFs" \
 	; done
-cd ORFs
-mkdir ORFs_FASTA
-mv *_ORFs ORFs_FASTA
-echo "6) Utg-ORFs predicted and parsed" \
+cd 2_ORFs
+mkdir 2_ORFs_FASTA
+mv *_2_ORFs 2_ORFs_FASTA
+echo "6) Utg-2_ORFs predicted and parsed" \
 	>> PROGRESS_REPORTS
 
 # uniprot_sprot.fasta.gz (last update on 25.04.18) downloaded on 15.5.18
 # uniprot_trembl.fasta.gz (last update on 25.04.18) downloaded on 15.5.18
 
 ##ALIGN SEQUENCE TO UNIPROT DATABASE
-for f in ORFs_FASTA/*; do \
+for f in 2_ORFs_FASTA/*; do \
 	blastp \
 	-query $f \
-	-db uniprot_complete_nospace.fasta \
-	-out ${f%_merged_ORFs}"_reciprocal_utg_hits" \
+	-db WORKING_DIR_PATH/gadus_CA/9-terminator/DATABASES/BLASTS/UTG/merged_uniprotdbs.fasta \
+	-out ${f%_clean.fasta_orfs.fasta}"_reciprocal_utg_hits" \
 	-evalue 1 \
 	-outfmt 6 \
 	-max_target_seqs 3 \
 	-num_threads 24 \
 	; done
-cd ORFs_FASTA
+cd 2_ORFs_FASTA
 mkdir RECIPROCAL_HITS
 mv *_hits RECIPROCAL_HITS
-echo "7) Predicted utg-ORFs aligned to UniProt database" \
+echo "7) Predicted utg-2_ORFs aligned to UniProt database" \
 	>> PROGRESS_REPORTS
 
 ##DETERMINE CONFIRMED HITS AND GET ANNOTATION
