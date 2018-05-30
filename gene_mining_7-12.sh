@@ -31,8 +31,14 @@ echo "6) Utg-2_ORFs predicted and parsed" \
 # uniprot_sprot.fasta.gz (last update on 25.04.18) downloaded on 15.5.18
 # uniprot_trembl.fasta.gz (last update on 25.04.18) downloaded on 15.5.18
 
+# prepared merged database file:
+time makeblastdb -in merged_uniprotdbs.fasta -dbtype prot -out merged_uniprotdbs 
+# time:
+# Error: (1431.1) FASTA-Reader: Warning: FASTA-Reader: Ignoring FASTA modifier(s) found because the input was not expected to have any
+# this error/warning message is fixed in newer BLAST+ versions, appears only in our version (2.2.29), should be ignored
+
 ##ALIGN SEQUENCE TO UNIPROT DATABASE
-for f in 2_ORFs_FASTA/*; do \
+for f in 2_ORFs/*; do \
 	blastp \
 	-query $f \
 	-db WORKING_DIR_PATH/gadus_CA/9-terminator/DATABASES/BLASTS/UTG/merged_uniprotdbs.fasta \
@@ -40,9 +46,9 @@ for f in 2_ORFs_FASTA/*; do \
 	-evalue 1 \
 	-outfmt 6 \
 	-max_target_seqs 3 \
-	-num_threads 24 \
+	-num_threads 16 \
 	; done
-cd 2_ORFs_FASTA
+cd 2_ORFs
 mkdir RECIPROCAL_HITS
 mv *_hits RECIPROCAL_HITS
 echo "7) Predicted utg-2_ORFs aligned to UniProt database" \
