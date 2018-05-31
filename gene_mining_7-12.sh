@@ -33,7 +33,7 @@ echo "6) Utg-2_ORFs predicted and parsed" \
 
 # prepared merged database file:
 time makeblastdb -in merged_uniprotdbs.fasta -dbtype prot -out merged_uniprotdbs 
-# time:
+
 # Error: (1431.1) FASTA-Reader: Warning: FASTA-Reader: Ignoring FASTA modifier(s) found because the input was not expected to have any
 # this error/warning message is fixed in newer BLAST+ versions, appears only in our version (2.2.29), should be ignored
 
@@ -46,13 +46,15 @@ for f in 2_ORFs/*; do \
 	-evalue 1 \
 	-outfmt 6 \
 	-max_target_seqs 3 \
-	-num_threads 16 \
+	-num_threads 12 \
 	; done
 cd 2_ORFs
 mkdir RECIPROCAL_HITS
 mv *_hits RECIPROCAL_HITS
 echo "7) Predicted utg-2_ORFs aligned to UniProt database" \
 	>> PROGRESS_REPORTS
+
+#time: 340 min = 5,7 h
 
 ##DETERMINE CONFIRMED HITS AND GET ANNOTATION
 for f in RECIPROCAL_HITS/*; do \
