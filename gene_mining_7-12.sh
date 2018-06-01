@@ -28,6 +28,8 @@ mv *_2_ORFs 2_ORFs_FASTA
 echo "6) Utg-2_ORFs predicted and parsed" \
 	>> PROGRESS_REPORTS
 
+# cannot trace extract_fasta command
+
 # uniprot_sprot.fasta.gz (last update on 25.04.18) downloaded on 15.5.18
 # uniprot_trembl.fasta.gz (last update on 25.04.18) downloaded on 15.5.18
 
