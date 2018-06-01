@@ -100,3 +100,6 @@ for f in ONELINERS/*_beautified; do \
 	>> PROGRESS_REPORTS \
 	; done
 
+
+# list of genes empty, reslove extract_fasta command before moving to the singletons
+
