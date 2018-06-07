@@ -36,7 +36,6 @@ mv *_2_ORFs 2_ORFs_FASTA
 echo "6) Utg-2_ORFs predicted and parsed" \
 	>> $PROGRESS_REPORTS
 
-# cannot trace extract_fasta command
 
 # uniprot_sprot.fasta.gz (last update on 25.04.18) downloaded on 15.5.18
 # uniprot_trembl.fasta.gz (last update on 25.04.18) downloaded on 15.5.18
@@ -45,7 +44,7 @@ echo "6) Utg-2_ORFs predicted and parsed" \
 time makeblastdb -in merged_uniprotdbs.fasta -dbtype prot -out merged_uniprotdbs 
 
 # Error: (1431.1) FASTA-Reader: Warning: FASTA-Reader: Ignoring FASTA modifier(s) found because the input was not expected to have any
-# this error/warning message is fixed in newer BLAST+ versions, appears only in our version (2.2.29), should be ignored
+# this error/warning message is fixed in newer BLAST+ versions, appears only in the version 2.2.29, should be ignored
 
 ##ALIGN SEQUENCE TO UNIPROT DATABASE
 for f in 1_ORFs_FASTA/*; do \
@@ -110,5 +109,4 @@ for f in ONELINERS/*_beautified; do \
 	; done
 
 
-# list of genes empty, reslove extract_fasta command before moving to the singletons
 
