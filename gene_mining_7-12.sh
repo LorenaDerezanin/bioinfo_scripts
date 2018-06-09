@@ -8,7 +8,7 @@ PROGRESS_REPORTS=$WORKING_DIR_PATH/gadus_CA/gene_mining_results/Progress_gadus_3
 ##PREDICT ORF FOR ALL GENES IN EACH UNITIG
 for f in FASTA/*_splitted_utg_reads_*; do \
 	hmmer2go getorf \
-	-i $f > \
+	-i $f \
 	-o $f"_" \
     --verbose \
     -n 4 \
