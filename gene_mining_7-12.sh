@@ -5,26 +5,39 @@ set -e
 WORKING_DIR_PATH="/home/derezanin/species_comp/atlantic_cod/fish_paired_reads/gadus_3_assembly"
 PROGRESS_REPORTS=$WORKING_DIR_PATH/gadus_CA/gene_mining_results/Progress_gadus_3
 
-##PREDICT ORF FOR ALL GENES IN EACH UNITIG
-for f in FASTA/*_splitted_utg_reads_*; do \
-	hmmer2go getorf \
+# need to prepare unitig ids first, before running hmmer2go, otherwise it spits error and empty output files
+# get https://github.com/sestaton/sesbio/blob/master/gene_annotation/clean_multifasta.pl
+# run clean_multifasta.pl script to keep only the utg ID for EMBOSS getorf search
+
+# PREPARING UTG IDs FOR HMMER2GO
+for f in FASTA/*_splitted_UTG_reads_*; do \
+	./clean_multifasta.pl \
 	-i $f \
 	-o $f"_" \
+
+
+##PREDICT ORF FOR ALL GENES IN EACH UNITIG
+for f in FASTA/*_*; do \
+	hmmer2go getorf \
+	-i $f \
+	-o ${f%_splitted_UTG_reads_}"orfs.fasta" \
+	--all \
+	-l 100 \
     --verbose \
     -n 4 \
 	; done
 cd FASTA
 mkdir 2_ORFs
-mv *_ 2_ORFs
+mv *orfs.fasta 2_ORFs
 
 ##EXTRACT UNITIG-2_ORFs SEQUENCE
-# look for file names looking like (some_string)_xx(_clean.fasta_orfs.fasta), and remember the parts in parentheses
-re='(.+)_[a-z]{2}(_clean.fasta_orfs.fasta)'
+# look for file names looking like (some_string)_xx(_orfs.fasta), and remember the parts in parentheses
+re='(.+)_[a-z]{2}(_orfs.fasta)'
 for f in 2_ORFs/*; do 
 	if [[ $f =~ $re ]]; then
 		# construct a file name like some_string_clean.fasta_orfs.fasta based on the current file name
 		# (notice we removed the middle _xx part)
-		merged=${BASH_REMATCH[1]}${BASH_REMATCH[2]}"_merged_2_ORFs"
+		merged=${BASH_REMATCH[1]}${BASH_REMATCH[2]}"_merged_ORFs"
 		# append the matching input files into the same output files
 		cat $f >> $merged
 	fi
@@ -32,7 +45,7 @@ done
 
 cd 2_ORFs
 mkdir 2_ORFs_FASTA
-mv *_2_ORFs 2_ORFs_FASTA
+mv *_merged_ORFs 2_ORFs_FASTA
 echo "6) Utg-2_ORFs predicted and parsed" \
 	>> $PROGRESS_REPORTS
 
@@ -47,11 +60,11 @@ time makeblastdb -in merged_uniprotdbs.fasta -dbtype prot -out merged_uniprotdbs
 # this error/warning message is fixed in newer BLAST+ versions, appears only in the version 2.2.29, should be ignored
 
 ##ALIGN SEQUENCE TO UNIPROT DATABASE
-for f in 1_ORFs_FASTA/*; do \
+for f in 2_ORFs_FASTA/*; do \
 	blastp \
 	-query $f \
-	-db merged_uniprotdbs.fasta \
-	-out ${f%_clean.fasta_orfs.fasta}"_reciprocal_utg_hits" \
+	-db merged_uniprotdbs \
+	-out ${f%_splitted_UTG_reads_orfs.fasta_merged_ORFs}"_reciprocal_utg_hits" \
 	-evalue 1 \
 	-outfmt 6 \
 	-max_target_seqs 3 \

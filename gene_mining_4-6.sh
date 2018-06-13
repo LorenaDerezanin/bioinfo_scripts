@@ -20,12 +20,12 @@ echo "4) Gene-containing UTGs parsed to files" \
 for f in UTG_HITS/*; do \
 	cut -f2 $f | \
 	sort -u \
-	> $f"_UTG_reads_only" \
+	> $f"_utg_reads_only" \
 	; done
 
 # use parameter -j16 ,assigns 16 threads to parallel, otherwise uses all resources
 echo "Doing fastagrep in parallel"
-ls UTG_HITS/*UTG_reads_only | \
+ls UTG_HITS/*utg_reads_only | \
 	time parallel -j16 '/home/derezanin/species_comp/atlantic_cod/fish_paired_reads/\
 gadus_3_assembly/gadus_CA/9-terminator/\
 teleost_genomes_data_descriptor/ortholog_identification/scripts/resources/\
@@ -53,10 +53,10 @@ echo "5) UTG-sequences extracted" \
 ##GET EACH UNITIG TO SEPARATE FILES BEFORE ORF PREDICTION
 for f in FASTA/*; do \
 	split -l 2 $f \
-	${f%_UTG_reads_only_fasta}"_splitted_UTG_reads_" \
+	${f%_utg_reads_fasta}"_splitted_UTG_reads_" \
 	; done
 
 
 	# time ~38 min (23.04.2018)
 	# time with parallel fastagrep, 16 CPUs assigned ~ 4,4 min (24.04.2018)
-	# didn't use all the CPUs assigned
+	
