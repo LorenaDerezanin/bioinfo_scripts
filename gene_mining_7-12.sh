@@ -53,8 +53,12 @@ echo "6) Utg-2_ORFs predicted and parsed" \
 # uniprot_sprot.fasta.gz (last update on 25.04.18) downloaded on 15.5.18
 # uniprot_trembl.fasta.gz (last update on 25.04.18) downloaded on 15.5.18
 
+# replace all white spaces with "$" sign, to get the full name of the protein during blastp step
+sed "s/ /$/g" merged_uniprotdbs.fasta > merged_uniprotdbs_nospace.fasta 
+
 # prepared merged database file:
-time makeblastdb -in merged_uniprotdbs.fasta -dbtype prot -out merged_uniprotdbs 
+time makeblastdb -in merged_uniprotdbs_nospace.fasta -dbtype prot -out merged_uniprotdbs_nospace 
+# time on allegro:  (20 GB, 16 CPUs)
 
 # Error: (1431.1) FASTA-Reader: Warning: FASTA-Reader: Ignoring FASTA modifier(s) found because the input was not expected to have any
 # this error/warning message is fixed in newer BLAST+ versions, appears only in the version 2.2.29, should be ignored
@@ -76,7 +80,9 @@ mv *_hits 1_RECIPROCAL_HITS
 echo "7) Predicted utg-2_ORFs aligned to UniProt database" \
 	>> $PROGRESS_REPORTS
 
-#time: 218 min = 3,6 h
+# time: 218 min = 3,6 h (for only 1 ORF per unitig)
+# time on allegro:  ~ 13,3 h, 20 GB, 16 threads (multiple ORFs per unitig, merged)
+
 
 ##DETERMINE CONFIRMED HITS AND GET ANNOTATION
 for f in 1_RECIPROCAL_HITS/*; do \
@@ -106,6 +112,8 @@ for f in ONELINERS/*; do \
 	awk -F "|" '{$2="";print $0}' \
 	> $f"_beautified" \
 	; done
+
+# add print 1st column if there is 2nd column present	
 for f in ONELINERS/*_beautified; do \
 	head $f | \
 	awk '/=/{print$1}' | \
