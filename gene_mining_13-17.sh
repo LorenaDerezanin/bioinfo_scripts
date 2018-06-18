@@ -18,7 +18,7 @@ grep \
 	-f List_of_genes_found_in_utgs \
 	-x \
 	-v \
-	~/Gene_names_only \
+	$WORKING_DIR_PATH/Gene_names_only \
 	> Still_no_good_hits
 echo "9) Looking for the following genes in the singelton reads:" \
 	>> $PROGRESS_REPORTS
@@ -26,13 +26,16 @@ cat Still_no_good_hits \
 	>> $PROGRESS_REPORTS
 
 ##EXSTRACT FASTA SEQUENCE FOR THE SINGLETON BLAST SEARCH
+$WORKING_DIR_PATH/gadus_CA/9-terminator/teleost_genomes_data_descriptor/ortholog_identification/scripts/resources/\
 fastagrep \
 	-t \
 	-f Still_no_good_hits \
-	~/Complete_genelist.fas \
+	$WORKING_DIR_PATH/Complete_genelist.fas \
 	> Still_no_good_hits_fas
 
 ##ALIGN REDUCED GENELIST TO SINGLETON READS
+# time makeblastdb -in gadus_3_CA.singleton.fasta -dbtype nucl -out gadus_3_CA.singleton.fasta
+
 tblastn \
 	-query Still_no_good_hits_fas \
 	-db ../../$FISH.singleton.fasta \

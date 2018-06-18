@@ -31,6 +31,8 @@ cd UTG
 # tblastn (query=protein vs. database=nucleotide seqs which get translated,so alignm. type is protein vs. protein)
 # -max_target_seqs 10 max number of saved database matches for a query (genelist), assuming there are no more than 10 gene copies?
 # -db ../../../$FISH.utg.fasta \
+
+# time makeblastdb -in gadus_3_CA.utg.fasta -dbtype nucl -out gadus_3_CA.utg.fasta
 tblastn \
 	-query $WORKING_DIR_PATH/gadus_CA/9-terminator/Complete_genelist.fas \
 	-db $WORKING_DIR_PATH/gadus_CA/9-terminator/gadus_3_CA.utg.fasta \
