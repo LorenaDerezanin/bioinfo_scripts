@@ -30,38 +30,62 @@ for f in FASTA/*; do \
 	${f%_sin_reads_fasta}"_splitted_singletons_" \
 	; done
 
-##PREDICT ORF FOR ALL GENES IN EACH SINGLETON
-for f in FASTA/*_splitted_singletons_*; do \
-	genscan \
-	/projects/454data/bin/GenScan/HumanIso.smat $f > \
-	$f"_" \
-	; done
-cd FASTA
-mkdir ORFs
-mv *_ ORFs
 
-##EXTRACT SEQUENCE FOR SINGLETON ORFS
-for f in ORFs/*; do \
-	extract_fasta $f \
-	>> ${f%_splitted_singletons_???}"_merged_ORFs" \
+# PREPARING UTG IDs FOR HMMER2GO
+for f in FASTA/*_splitted_singletons_*; do \
+	/home/derezanin/species_comp/scripts/perl_scripts/clean_multifasta.pl \
+	-i $f \
+	-o $f"_" \
 	; done
-cd ORFs
+
+##PREDICT ORF FOR ALL GENES IN EACH SINGLETON
+for f in 1_CLEAN_FASTA/*_*; do \
+	hmmer2go getorf \
+	-i $f \
+	-o ${f%_splitted_singletons_}"orfs.fasta" \
+	--all \
+	-l 100 \
+   	--verbose \
+   	-n 4 \
+	; done
+
+cd 1_CLEAN_FASTA
+mkdir SIN_ORFs
+mv *orfs.fasta SIN_ORFs
+
+
+##EXTRACT SINGLETON ORFs SEQUENCE
+# look for file names looking like (some_string)_xx(_orfs.fasta), and remember the parts in parentheses
+re='(.+)_[a-z]{2}(_orfs.fasta)'
+for f in SIN_ORFs/*; do 
+	if [[ $f =~ $re ]]; then
+		# construct a file name like some_string_clean.fasta_orfs.fasta based on the current file name
+		# (notice we removed the middle _xx part)
+		merged=${BASH_REMATCH[1]}${BASH_REMATCH[2]}"_merged_ORFs"
+		# append the matching input files into the same output files
+		cat $f >> $merged
+	fi
+done
+
+cd SIN_ORFs
 mkdir ORFs_FASTA
 mv *_ORFs ORFs_FASTA
 echo "14) Singleton-ORFs predicted and parsed" \
 	>> ~/Progressreports_2015/Progress_$FISH
 
+
 ##ALIGN SINGLETONS TO UNIPROT DATABASE
 for f in ORFs_FASTA/*; do \
-	blastp \
-	-query $f \
-	-db ~/uniprot_complete_nospace.fasta \
-	-out ${f%_merged_ORFs}"_reciprocal_sin_hits" \
-	-evalue 1 \
-	-outfmt 6 \
-	-max_target_seqs 20 \
-	-num_threads 24 \
-	; done
+        blastp \
+        -query $f \
+        -db $WORKING_DIR_PATH/gadus_CA/9-terminator/DATABASES/BLASTS/UTG/merged_uniprotdbs_nospace \
+        -out ${f%_merged_ORFs}"_reciprocal_sin_hits" \
+        -evalue 1 \
+        -outfmt 6 \
+        -max_target_seqs 20 \
+        -num_threads 16 \
+        ; done
+
 cd ORFs_FASTA
 mkdir RECIPROCAL_HITS
 mv *_hits RECIPROCAL_HITS
