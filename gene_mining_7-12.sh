@@ -14,10 +14,11 @@ for f in FASTA/*_splitted_UTG_reads_*; do \
 	./clean_multifasta.pl \
 	-i $f \
 	-o $f"_" \
+	; done
 
 
 ##PREDICT ORF FOR ALL GENES IN EACH UNITIG
-for f in FASTA/*_*; do \
+for f in FASTA/*_; do \
 	hmmer2go getorf \
 	-i $f \
 	-o ${f%_splitted_UTG_reads_}"orfs.fasta" \
@@ -113,7 +114,7 @@ for f in ONELINERS/*; do \
 	> $f"_beautified" \
 	; done
 
-# add print 1st column if there is 2nd column present	
+# add "print 1st column if there is 2nd column present"
 for f in ONELINERS/*_beautified; do \
 	head $f | \
 	awk '/=/{print$1}' | \
