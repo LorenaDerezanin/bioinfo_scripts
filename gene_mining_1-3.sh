@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# script adjusted  from: https://github.com/uio-cees/teleost_genomes_immune
+
 # this stops the script when a command doesn't return 0 (when it throws an error)
 set -e
 

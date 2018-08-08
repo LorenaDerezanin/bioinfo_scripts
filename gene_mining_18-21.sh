@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# script adjusted  from: https://github.com/uio-cees/teleost_genomes_immune
+
 set -e 
 
 WORKING_DIR_PATH="/home/derezanin/species_comp/atlantic_cod/fish_paired_reads/gadus_3_assembly"

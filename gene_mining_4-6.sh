@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# script adjusted  from: https://github.com/uio-cees/teleost_genomes_immune
+
 set -e
 
 ##SETUP INPUT VARIABLES
