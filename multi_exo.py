@@ -20,7 +20,7 @@ args = parser.parse_args()
 
 
 def gene_name(protein_name):
-    split_name = protein_name.split(".fasta")
+    split_name = protein_name.split(".fa")
     return split_name[0]
 
 
@@ -34,5 +34,4 @@ for protein_file in protein_files:
           "--showalignment yes --showtargetgff yes >" % (f_in_path, args.target, args.bestn, args.dpm, args.score)\
           + f_out_path
     os.system(exo)
-
 
