@@ -4,11 +4,12 @@
 species = c(
   "brown_bear",
   "giant_panda",
-  "american_black_bear"
+  "polar_bear",
+  "sun_bear"
 )
 
 get_species_files <- function(species) {
-  species_path = paste0("/home/derezanin/species_comp/bears/", species, "/tblastn_hits/e2_hits_80aa")
+  species_path = paste0("/home/derezanin/temp_storage/bears/", species, "/tblastn_hits/e2_hits_80aa")
   files <- list.files(path = species_path, full.names = TRUE)
   return(files)
 }

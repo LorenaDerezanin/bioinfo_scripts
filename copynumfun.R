@@ -1,6 +1,4 @@
 
-
-
 copynum.iter.iter <- function( y.mat, C, prior, max.iter=10, as.integer=TRUE, verbose=TRUE ){
   # y.mat must have one row for each stringency and one column for each gene
   # prior - initial estimate of copy numbers for each ref. gene
@@ -40,13 +38,13 @@ copynum.iter <- function( y.mat, C, prior, max.iter=10, as.integer=TRUE, verbose
     g.mat <- matrix( rep( gamma.hat, dd[1] ), nrow=dd[1], byrow=T )
     idx <- which( g.mat <= 0.5, arr.ind=TRUE )
     g.mat[idx] <- NA
-    # phi.hat - normalized average number of observed ref. gene hits for each cutoff for this fish 
+    # phi.hat - normalized average number of observed ref. gene hits for each cutoff for this species
     # aka estimated stringency factor Fs with a hat (^)
     # assumed to be equal for all ref. genes per cutoff
     phi.hat <- rowMeans( y.mat/g.mat, na.rm=TRUE )/C
-    # phi.hat replicated n times (n of ref. genes for this fish)
+    # phi.hat replicated n times (n of ref. genes for this sp.)
     p.mat <- matrix( rep( phi.hat, dd[2] ), nrow=dd[1], byrow=F ) 
-    # gamma.hat - estimated copy number for all kept ref. genes for this fish
+    # gamma.hat - estimated copy number for all kept ref. genes for this sp.
     # across all cutoffs, Cg with a hat (^)
     gamma.hat <- colMeans( y.mat/p.mat )/C   
     if( as.integer ) gamma.hat <- round( gamma.hat )
