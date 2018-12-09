@@ -90,16 +90,23 @@ copynum <- function( y, ref.mat, ref.gamma, as.integer=TRUE ){
 
 # Create table with hits for each ref. marker for each e-value cutoff (-4, -6, -8, -10)
 
-b.bear <- list(name = "brown_bear", G.size = 2110508336, N.reads = 1121237882)
+b.bear <- list(name = "brown_bear", G.size = 2110508336, N.reads = 477378468)
 panda <- list(name = "giant_panda", G.size = 2405352861, N.reads = 877225626)
-p.bear <- list(name = "polar_bear", G.size = 2192934624, N.reads = 891832240)
-sun_bear <- list(name = "sun_bear", G.size = 2192934796, N.reads = 691832240)
+p.bear <- list(name = "polar_bear", G.size = 2192934624, N.reads = 185147862)
+sun_bear <- list(name = "sun_bear", G.size = 2192934796, N.reads = 301081988)
 
 all_species <- list(b.bear, panda, p.bear, sun_bear)
 
 
-get_species_files <- function(species_name) {
-  species_path = paste0("/home/derezanin/temp_storage/bears/", species_name, "/tblastn_hits/e2_hits_80aa")
+get_species_files <- function(species_name, gene_type) {
+  species_path <-
+    if (gene_type == "reference") {
+      paste0("/home/derezanin/temp_storage/bears/", species_name, "/tblastn_hits/e2_hits_80aa")
+    } else if (gene_type == "mhc") {
+      paste0("/home/derezanin/temp_storage/bears/", species_name, "/tblastn_hits/e2_MHC_hits_80aa")
+    } else {
+      stop(paste("Unknown gene_type:" + gene_type))
+    }
   files <- list.files(path = species_path, full.names = TRUE)
   return(files)
 }
@@ -108,9 +115,9 @@ get_gene_e_name <- function(gene_name, e) {
   return(paste0(gene_name, "_e_", e))
 }
 
-get_gene_names <- function() {
+get_gene_names <- function(gene_type) {
   first_species = all_species[[1]]
-  files = get_species_files(first_species$name)
+  files = get_species_files(first_species$name, gene_type)
   gene_names <- c()
   for ( f in files ) {
     data <- read.csv(f, header=FALSE, sep="\t")
@@ -121,16 +128,17 @@ get_gene_names <- function() {
   return(gene_names)
 }
 
-initialize_hits_table <- function(all_species) {
+initialize_hits_table <- function(all_species, gene_type) {
   
   num_columns = length(all_species)
-  num_genes = 19
-  num_e_cutoffs = 4
+  gene_names <- get_gene_names(gene_type)
+  num_genes = length(gene_names)
+  e_cutoffs <- c(4,6,8,10)
+  num_e_cutoffs = length(e_cutoffs)
   num_rows = num_genes * num_e_cutoffs
 
   gene_e_names = c()
-  for (gene_name in get_gene_names()) {
-    e_cutoffs <- c(4,6,8,10)
+  for (gene_name in gene_names) {
     for ( e in e_cutoffs ) {
       gene_e_name <- get_gene_e_name(gene_name, e)
       gene_e_names <- c(gene_e_names, gene_e_name)
@@ -144,9 +152,9 @@ initialize_hits_table <- function(all_species) {
   return(hits_table)
 }
 
-fill_hits <- function(all_species, hits) {
+fill_hits <- function(all_species, hits, gene_type) {
   for (s in all_species) {
-    files <- get_species_files(s$name)
+    files <- get_species_files(s$name, gene_type)
     
     for ( f in files ) {
       data <- read.csv(f, header=FALSE, sep="\t")
@@ -165,9 +173,6 @@ fill_hits <- function(all_species, hits) {
   return(hits)
 }
 
-empty_hits <- initialize_hits_table(all_species)
-gene_names <- get_gene_names()
-hits <- fill_hits(all_species, empty_hits)
 
 ```
 
@@ -185,18 +190,14 @@ Here we first decide which reference markers are possible to use for estimating 
 ```{r script1_ref_markers_mammals}
 
 options( stringsAsFactors = FALSE )
-#source( "copynumfun.R" )
 
-
-### Loads data and print a summary
-cat( "Loading data...\n" )
-#source( "hits_table_generator.R" )
-uref <- gene_names
-ref.hits <- hits
+empty_ref_hits <- initialize_hits_table(all_species, "reference")
+ref_gene_names <- get_gene_names(gene_type = "reference")
+ref.hits <- fill_hits(all_species, empty_ref_hits, gene_type = "reference")
+uref <- unique(ref_gene_names)
 
 # marker length in bp
 marker.length <- 80*3                            
-# G.size <- colMeans( genome.size )        
 G.size <- sapply(all_species, function(x) x[["G.size"]])   # assembly size estimated from k=31-91, s=2 (kmergenie)
 n.species <- ncol( ref.hits )                       # number of species observed 
 n.ref <- length( uref )                          # number of reference markers/genes
@@ -338,14 +339,13 @@ x <- sapply( 1:n.ref, function(i){
   cat(colnames(ref.keep)[i], "is discarded in",colSums( !ref.keep )[i],"species\n")
 } )
 
-save( ref.keep, file="res/ref_keep.RData" )
+#save( ref.keep, file="res/ref_keep.RData" )
 
 ```
 
 
 ## Script 2 of the procedure.
 
-You need to run script1 prior to this.
 Here we estimate the reference markers copy numbers.
 
 * Step 1 - Point estimates
@@ -355,17 +355,7 @@ Here we estimate the reference markers copy numbers.
 ```{r script2_ref_bootstraps_mammals}
 
 options( stringsAsFactors = FALSE )
-#source( "copynumfun.R" )
-#source( "hits_table_generator.R" )
 
-### Loads data and print summary
-cat( "Loading data...\n" )
-load( "res/ref_keep.RData" )
-uref <- gene_names
-ref.hits <- hits
-n.species <- ncol( ref.hits )                         # N of species observed 
-n.ref <- length( uref )                            # N of reference markers/genes
-cuts <- c(-4,-6,-8,-10)
 cat( "   we have data for", n.ref, "reference markers\n" )
 cat( "   we have data for", n.species, "species\n" )
 cat( "   reference markers are", marker.length, "bases long\n" )
@@ -442,12 +432,72 @@ for( ss in 1:n.species ){
   cat( "\n" )
 }
 
-save( ref.boot, file="res/ref_boot.RData" )
+#save( ref.boot, file="res/ref_boot.RData" )
 boxplot(t(ref.boot[3,,]), ylim=c(0,4), las=2,ylab="Reference marker copy number")
 abline(h=1)
 
 ```
 
 
+## Script 3 of the procedure.
+
+Here we estimate the copy numbers of the MHC genes. 
+Only bootstrap-estimates are considered here. Point estimates are achieved by averaging over the bootstrap-results for each gene and species.
+
+```{r script3_MHC_copy_num_estimates}
+
+options( stringsAsFactors=F )
 
 
+### Estimating copy number of MHC genes in each species
+### based on read-counts and reference marker copy numbers.
+### The bootstrapping is as follows:
+### For each bootstrap sample, the corresponding bootstrap-result
+### for the reference markers is used. In addition, not all
+### reference markers are used, but another bootstrap-sample
+### selects which reference markers to use each time.
+
+bootstrap <- function(mhc.hits, ref.keep) {
+  n.species = ncol(mhc.hits)
+  N.boot <- 1000
+  MHC.boot <- matrix( 0, nrow=n.species, ncol=N.boot )
+  rownames( MHC.boot ) <- colnames( mhc.hits )
+  for( ss in 1:n.species ){
+    cat( "Bootstrapping", rownames(MHC.boot)[ss], "...\n" )
+    yg.mat <- matrix( ref.hits[,ss], nrow=4, byrow=F )
+    idx.in <- which( ref.keep[ss,] )
+    yg.mat <- yg.mat[,idx.in]
+    GGG <- length( idx.in )
+    for( b in 1:N.boot ){
+      ref.gamma <- ref.boot[ss,idx.in,b]               # using the reference bootstrap results
+      M <- matrix( NA, nrow=4, ncol=GGG )
+      idx <- sample( 1:GGG, size=GGG, replace=TRUE )   # sampling which reference markers to use
+      for( i in 1:4 ){
+        for( g in 1:GGG ){
+          if( (yg.mat[i,idx[g]] != 0) & (ref.gamma[idx[g]] != 0) ){
+            M[i,g] <- ref.gamma[idx[g]] * mhc.hits[i,ss]/yg.mat[i,idx[g]] 
+          }
+        }
+      }
+      MHC.boot[ss,b] <- mean( M, na.rm=TRUE ) # averaging over all BLAST-cutoffs and selected references
+    }
+  }
+  
+  return(MHC.boot)
+}
+
+empty_mhc_hits <- initialize_hits_table(all_species, gene_type = "mhc")
+mhc_gene_names <- get_gene_names(gene_type = "mhc")
+all_mhc_hits <- fill_hits(all_species, empty_mhc_hits, gene_type = "mhc")
+
+for (i in 1:length(mhc_gene_names)) {
+  mhc_gene_name <- mhc_gene_names[[i]]
+  j <- i*4 - 3
+  mhc.hits <- all_mhc_hits[j:(j+3),]
+  MHC.boot <- bootstrap(mhc.hits, ref.keep)
+  par( mar=c(5,6,1,1) )
+  boxplot( t(MHC.boot ),cex.axis=0.6,horizontal=T,las=2,xlab=paste(mhc_gene_name, "copy number"))
+}
+
+
+```
