@@ -2,16 +2,107 @@
 title: "full_CNV_pipeline"
 author: "Lorke"
 date: "12/2/2018"
-output: html_document
+output: pdf_document
 ---
 
-## insert bash scripts ##
+## Bash scripts used for tblastn prep
+
+```bash 
+
+# get SRA files with raw PE reads from ENA site for each species and split them in paired fastq files
+fastq-dump --split-files -I reads.sra
+# prep fastqc reports
+fastqc reads1.fq
+
+# remove adapters where needed, Trimmomatic
+FILE_PATH=/home/derezanin/temp_storage/brown_bear/raw_reads/
+TRIMMOMATIC=/usr/local/bioinf/Trimmomatic-0.35/trimmomatic-0.35.jar
+
+java -jar $TRIMMOMATIC PE \
+-threads 16 \
+$FILE_PATH/read1.fastq \
+$FILE_PATH/read2.fastq \
+$FILE_PATH/trimmed_reads/paired_read_1.fastq \
+$FILE_PATH/trimmed_reads/unpaired_read_1.fastq \
+$FILE_PATH/trimmed_reads/paired_read_2.fastq \
+$FILE_PATH/trimmed_reads/unpaired_read_2.fastq \
+ILLUMINACLIP:adapters.fa:2:30:10 \
+SLIDINGWINDOW:4:15 \
+MINLEN:100
+
+# crop reads to length=100bp where needed, Trimmomatic(CROP:100)
+
+# transform fastq files to fasta with:
+fastq2fasta.sh read1.fq > read1.fa
+
+#fastq2fasta.sh:
+#!/usr/bin/env bash
+#INPUT_FILES=$1
+#replace comma by space
+#INPUT_FILES=${INPUT_FILES//,/ }
+cat $@ | awk '{if(NR%4==1 || NR%4==2) print $0 }' | sed 's/^@/\>/'
+
+# concatenate all PE reads.fa in one file before blastdb indexing
+cat read1.fa read2.fa >> merged_reads.fa 
+
+# prep blastdb out of merged reads for each species
+time makeblastdb -in merged_reads.fa  -dbtype nucl -parse_seqids -out merged_readsdb
+#time for bear reads: 16 - 23 hours per db
+
+```
+
+
+## tblastn reference gene set(query) vs. raw reads(db)
+
+Reference gene set contains 19 files, each with consensus protein sequence(80aa long fragment) of a gene putatively occuring in a single copy in reference mammal species (human,cow,horse,pig,mouse).
+
+```bash
+
+# tblastn (query=protein vs. db=nucleotide seqs which get translated,so aln type is prot vs. prot in the end)
+
+for f in /home/derezanin/species_comp/Ortho_ref_gene_set_Geneious/80aa_ref_set/*.fa
+do
+        file_name=$(basename $f)
+        tblastn \
+        -query $f \
+        -db /hts/Lorena_tmp/bears/brown_bear/blastdb/trimmed_readsDB/merged_b_beardb \
+        -out /hts/Lorena_tmp/bears/brown_bear/tblastn_hits/e2_hits_80aa/$file_name"_e2_80aa_hits" \
+        -outfmt 6 \
+        -evalue 1e-2 \
+        -num_threads 16 \
+        ; done
+
+```
+
+
+## tblastn MHC gene set(query) vs. raw reads(db) 
+
+MHC gene set contains 4 files, each with protein sequence(80aa long fragment) of a human MHC gene(DQA,DQB,DRA,DRB_exon2).
+
+```bash 
+
+for f in /home/derezanin/species_comp/Ortho_ref_gene_set_Geneious/80aa_MHC_set/*.fa
+do
+        file_name=$(basename $f)
+        tblastn \
+        -query $f \
+        -db /hts/Lorena_tmp/bears/brown_bear/blastdb/trimmed_readsDB/merged_b_beardb \
+        -out /hts/Lorena_tmp/bears/brown_bear/tblastn_hits/e2_hits_80aa/$file_name"_e2_80aa_MHC_hits" \
+        -outfmt 6 \
+        -evalue 1e-2 \
+        -num_threads 16 \
+        ; done
+
+# tblastn output for each species is passed further for copy number estimation (check hits_table_generator chunk)
+
+```
+
 
 
 ## Defining the copy number iteration functions
 
 ```{r copynumfun, echo=FALSE} 
-# echo=FALSE - hides code, displays only output in the knitted doc
+# echo=FALSE - hides code, displays only the output in the knitted doc
 
 copynum.iter.iter <- function( y.mat, C, prior, max.iter=10, as.integer=TRUE, verbose=TRUE ){
   # y.mat must have one row for each stringency and one column for each gene
@@ -178,7 +269,7 @@ fill_hits <- function(all_species, hits, gene_type) {
 
 
 
-## Script 1 of the procedure.
+## RScript_1 - Reference markers preparation
 
 Here we first decide which reference markers are possible to use for estimating copy numbers.
 
@@ -212,21 +303,23 @@ x <- sapply( 1:n.species, function(i){
 
 
 ### First data sanity check - checking for too low coverage
-### Some reference markers may, for some reason, have extremely low coverage
-### We would like to exclude these since they may affect all other estimates
-### of copy numbers later
+
+# Some reference markers may, for some reason, have extremely low coverage
+# We would like to exclude these since they may affect all other estimates of copy numbers later
+
 low.cov <- matrix( 0, nrow=n.species, ncol=n.ref )
 rownames( low.cov ) <- colnames( ref.hits )
 colnames( low.cov ) <- uref
-coverage <- (N.reads*marker.length)/G.size    # This is the expected coverage per species
+coverage <- (N.reads*marker.length)/G.size    # expected coverage per species
 for( i in 1:n.ref ){
   cat( "Reference ", uref[i], "\n" )
   
-  idd <- seq( 1, nrow(ref.hits), 4 )                          # hits under cutoff -4
-  ohits_cutoff5 <- ref.hits[idd[i],]                          # observed number of hits for reference gene uref[i] at cutoff -4
-  normalized_hits <- ohits_cutoff5/coverage                   # number of hits per unit of coverage (~percentage of hits compared to coverage)
-  phi1 <- mean( normalized_hits )                             # very rough estimate of cutoff-factor Fs
-  ehits1 <- coverage*phi1                                     # expected number of hits based on phi1
+  idd <- seq( 1, nrow(ref.hits), 4 )                    # hits under cutoff -4
+  ohits_cutoff5 <- ref.hits[idd[i],]                    # observed number of hits for ref gene uref[i] at cutoff -4
+  normalized_hits <- ohits_cutoff5/coverage  # number of hits per unit of coverage (~percentage of hits compared to coverage)
+  phi1 <- mean( normalized_hits )                      # very rough estimate of cutoff-factor Fs
+  ehits1 <- coverage*phi1                             # expected number of hits based on phi1
+  
   # chi- square - for diff. between observed and estimated hits is high
   rr1 <- sign( ohits_cutoff5 - (ehits1-3*sqrt(ehits1)) )      # if rr1 is negative the coverage is very low
  
@@ -247,11 +340,12 @@ for( i in 1:n.ref ){
   rr4 <- sign( ref.hits[idd[i],] - (ehits4-3*sqrt(ehits4)) )
   
   rmat <- matrix( c(rr1,rr2,rr3,rr4), ncol=4, byrow=F )       # The rr1,...,rr4 values
-  low.cov[,i] <- rowSums( rmat )                              # summing the signs, i.e. need 3 out of 4 negative to
-}                                                             # get a negative sum
+  low.cov[,i] <- rowSums( rmat )           # summing the signs, i.e. need 3 out of 4 negative to get a negative sum
+}          
+
 ref.keep <- (low.cov >= 0 )
 r.disc <- rowSums(!ref.keep)
-f.disc <- colSums( !ref.keep )                                # number of species for which each ref.gene was discadred   
+f.disc <- colSums( !ref.keep )             # number of species for which each ref.gene was discadred   
 cat( "Number of discarded reference markers per species:\n" )
 x <- sapply( 1:n.species, function(i){
   cat(rownames(ref.keep)[i], "discards",r.disc[i],"reference markers\n")
@@ -262,12 +356,12 @@ x <- sapply( 1:n.ref, function(i){
 } )
 
 
-### Next, checking which reference genes have read-hits that
-### cannot be explained by the cutoff-model.
-### In short, we expect that as the blast-cutoff is made stricter, the
-### number of hits should decrease in a smooth way.
-### Here we look for cases where this is clearly violated
-mse <- matrix( 0, nrow=n.species, ncol=n.ref )       # mse represents residual variance (S2g) for a marker 
+### Next, checking which reference genes have read-hits that cannot be explained by the cutoff-model
+
+# We expect that as the blast-cutoff is made stricter, number of hits should decrease in a smooth way
+# Here we look for cases where this is clearly violated
+
+mse <- matrix( 0, nrow=n.species, ncol=n.ref )    # mse represents residual variance (S2g) for a marker 
 colnames( mse ) <- uref
 rownames( mse ) <- colnames( ref.hits )
 for( ss in 1:n.species ){
@@ -275,14 +369,16 @@ for( ss in 1:n.species ){
   # same as C <- coverage[ss] 
   C <- (N.reads[ss]*marker.length)/G.size[ss]     # coverage for this species
   idx.in <- which( ref.keep[ss,] )                # indices of ref. genes used for this species
-  n.in <- length( idx.in )                        # number of ref. genes used for this species
+  n.in <- length( idx.in )                        # number of ref. genes used for this species 
+  
   # all observed hits for this species, columns = ref.genes, rows = 4 cutoffs
   y.mat <- matrix( ref.hits[,ss], nrow=4, ncol=n.ref, byrow=F ) 
   y.mat <- y.mat[,idx.in]                         # hits for kept ref. genes for this species
   lst <- copynum.iter.iter( y.mat, C, rep( 1, n.in ), as.integer=FALSE )
   
   g.mat <- matrix( rep( lst$Gamma, 4 ), nrow=4, byrow=TRUE )
-  p.mat <- matrix( rep( lst$Phi, n.in ), ncol=n.in, byrow=FALSE )
+  p.mat <- matrix( rep( lst$Phi, n.in ), ncol=n.in, byrow=FALSE ) 
+  
   # estimated number of ref. gene hits for this species for all 4 cutoffs
   y.hat <- C * g.mat * p.mat
   # difference between observed and estimated ref.gene hits 
@@ -299,11 +395,14 @@ for( ss in 1:n.species ){
 # graph for observed and estimated ref. gene hits - closer the points are to the red line, smaller the diff.
 
 
-sigma2 <- mean( mse, trim=0.01 )          # sigma2 is the variance of the error term, trimmed off 1% of extreme values
-lambda <- (4-1)*mse/sigma2                # if lambda is large, it indicates that residual variance 
-limit <- qchisq( 0.99, df=(4-1) )         # is much larger than we expected - data fits the model poorly
-ref.keep <- (lambda <= limit)&ref.keep    # marker kept if lambda is lower than 99% quantile of the chi-square 
-                                          # distribution with 3 degrees of freedom
+# sigma2 is the variance of the error term, trimmed off 1% of extreme values
+sigma2 <- mean( mse, trim=0.01 ) 
+# if lambda is large, it indicates that residual variance is much larger than we expected - data fits the model poorly
+lambda <- (4-1)*mse/sigma2                
+limit <- qchisq( 0.99, df=(4-1) )
+# marker kept if lambda is lower than 99% quantile of the chi-square distribution with 3 degrees of freedom
+ref.keep <- (lambda <= limit)&ref.keep     
+                                        
 
 cat( "Number of discarded reference markers per species:\n" )
 x <- sapply( 1:n.species, function(i){
@@ -315,9 +414,9 @@ x <- sapply( 1:n.ref, function(i){
 } )
 
 
-### Third, eliminating reference genes that still estimate 
-### to 0 copies, as these will blow the other copy number 
-### estimates sky high later...
+### Third, eliminating reference genes that still estimate to 0 copies, 
+# as these will blow the other copy number estimates sky high later...
+
 ref.hat <- matrix( 0, nrow= n.species, ncol=n.ref )
 for( ss in 1:n.species){
   cat( rownames(ref.keep)[ss], ":\n" )
@@ -344,7 +443,7 @@ x <- sapply( 1:n.ref, function(i){
 ```
 
 
-## Script 2 of the procedure.
+## RScript_2 - Reference markers copy number estimation
 
 Here we estimate the reference markers copy numbers.
 
@@ -364,14 +463,15 @@ x <- sapply( 1:n.species, function(i){
 } )
 
 
-### Point estimates of reference marker copy number in each species
-### are based on read-counts and ALL reference markers for the specific species.
-### The matrix ref.point contains one row for each species(__ rows)
-### and one column for each marker (19), but since some
-### markers have been excluded for the various species (see script1)
-### there are some NA in the matrix.
+### Point estimates of reference marker copy number in each species are based on 
+# read-counts and ALL reference markers for the specific species
 
-# point estimation uses sample data to calculate a single value to serve as a best guess of copy numbers for sp.
+# The matrix ref.point contains one row for each species
+# and one column for each marker (19), but since some
+# markers have been excluded for the various species (see script1)
+# there are some NA in the matrix.
+
+# point estimation uses sample data to calculate a single value to serve as a best guess of copy numbers for the sp.
 ref.point <- matrix( NA, nrow=ncol(ref.hits), ncol=n.ref )
 rownames( ref.point ) <- names( G.size )
 colnames( ref.point ) <- uref
@@ -381,6 +481,7 @@ for( ss in 1:n.species ){
   C <- (N.reads[ss]*marker.length)/G.size[ss]         # coverage for this species
   idx.in <- which( ref.keep[ss,] )                    # indices of ref. genes used for this species
   n.in <- length( idx.in )                            # number of ref. genes used for this sp.
+  
   # all observed hits for this sp., columns = ref.genes, rows = 4 cutoffs
   y.mat <- matrix( ref.hits[,ss], nrow=4, ncol=n.ref, byrow=F )
   y.mat <- y.mat[,idx.in]                             # hits for kept ref. genes for this sp.
@@ -395,13 +496,14 @@ boxplot(ref.point,las=2,pch=16,ylab="Reference marker copy number")
 
 ### The bootstrap procedure
 
-# The difference to the point estimate above is that
-# estimates are based on a bootstrap-sample of the reference
-# markers for current species (not all markers), and this is repeated 1000 times.
-### When estimating the copy number for marker g, this marker must of course
+# The difference to the point estimate above is that estimates are based 
+# on a bootstrap-sample of the reference markers for current species (not all markers), 
+# and this is repeated 1000 times. 
+
+# When estimating the copy number for marker g, this marker must of course
 # be included, but the OTHER markers are bootstrapped 1000 times, and this
 # is repeated for every marker for each species.
-### The 3-dimensional array ref.boot stores the results.
+# The 3-dimensional array ref.boot stores the results.
 
 # phi.hat - normalized average number of observed ref. gene hits for each cutoff for this sp.
 # aka estimated stringency factor Fs with a hat (^)
@@ -409,6 +511,7 @@ phi.hat <- matrix( -1, nrow=4, ncol=n.species )
 rownames( phi.hat ) <- paste( "log10(E)=", cuts, sep="" ) # gives names to stringency rows 
 colnames( phi.hat ) <- colnames( ref.hits )
 N.boot <- 1000
+
 # 3-dim array
 ref.boot <- array( NA, dim=c(n.species, n.ref, N.boot), dimnames=list( Species=names(G.size), REF=uref, Boot=1:N.boot ) )
 for( ss in 1:n.species ){
@@ -419,7 +522,7 @@ for( ss in 1:n.species ){
   y.mat <- y.mat[,idx.in]
   n.in <- length( idx.in )
   for( g in 1:n.in ){
-    idb <- which( 1:n.in != g )    # randomly sampled g-1 genes from the ref.keep for this sp.
+    idb <- which( 1:n.in != g )     # randomly sampled g-1 genes from the ref.keep for this sp.
     for( b in 1:N.boot ){
       # indices of sampled g-1 genes with replacement
       idx.boot <- c( g, sample( idb, size=(n.in-1), replace=TRUE ) ) 
@@ -439,9 +542,8 @@ abline(h=1)
 ```
 
 
-## Script 3 of the procedure.
+## RScript_3 - MHC gene copy number estimation
 
-Here we estimate the copy numbers of the MHC genes. 
 Only bootstrap-estimates are considered here. Point estimates are achieved by averaging over the bootstrap-results for each gene and species.
 
 ```{r script3_MHC_copy_num_estimates}
@@ -449,13 +551,13 @@ Only bootstrap-estimates are considered here. Point estimates are achieved by av
 options( stringsAsFactors=F )
 
 
-### Estimating copy number of MHC genes in each species
-### based on read-counts and reference marker copy numbers.
-### The bootstrapping is as follows:
-### For each bootstrap sample, the corresponding bootstrap-result
-### for the reference markers is used. In addition, not all
-### reference markers are used, but another bootstrap-sample
-### selects which reference markers to use each time.
+### Estimating copy number of MHC genes in each species is based on read-counts and reference marker copy numbers.
+
+# The bootstrapping is as follows:
+# For each bootstrap sample, the corresponding bootstrap-result
+# for the reference markers is used. In addition, not all
+# reference markers are used, but another bootstrap-sample
+# selects which reference markers to use each time.
 
 bootstrap <- function(mhc.hits, ref.keep) {
   n.species = ncol(mhc.hits)
