@@ -90,15 +90,16 @@ copynum <- function( y, ref.mat, ref.gamma, as.integer=TRUE ){
 
 # Create table with hits for each ref. marker for each e-value cutoff (-4, -6, -8, -10)
 
-species = c(
-  "brown_bear",
-  "giant_panda",
-  "polar_bear",
-  "sun_bear"
-)
+b.bear <- list(name = "brown_bear", G.size = 2110508336, N.reads = 1121237882)
+panda <- list(name = "giant_panda", G.size = 2405352861, N.reads = 877225626)
+p.bear <- list(name = "polar_bear", G.size = 2192934624, N.reads = 891832240)
+sun_bear <- list(name = "sun_bear", G.size = 2192934796, N.reads = 691832240)
 
-get_species_files <- function(species) {
-  species_path = paste0("/home/derezanin/temp_storage/bears/", species, "/tblastn_hits/e2_hits_80aa")
+all_species <- list(b.bear, panda, p.bear, sun_bear)
+
+
+get_species_files <- function(species_name) {
+  species_path = paste0("/home/derezanin/temp_storage/bears/", species_name, "/tblastn_hits/e2_hits_80aa")
   files <- list.files(path = species_path, full.names = TRUE)
   return(files)
 }
@@ -108,12 +109,11 @@ get_gene_e_name <- function(gene_name, e) {
 }
 
 get_gene_names <- function() {
-  first_species = species[1]
-  files = get_species_files(first_species)
+  first_species = all_species[[1]]
+  files = get_species_files(first_species$name)
   gene_names <- c()
   for ( f in files ) {
     data <- read.csv(f, header=FALSE, sep="\t")
-    print(data)
     gene_name <- strsplit(data[1,1], "_")[[1]][1]
     gene_names <- c(gene_names, gene_name)
   }
@@ -121,9 +121,9 @@ get_gene_names <- function() {
   return(gene_names)
 }
 
-initialize_hits_table <- function(species) {
+initialize_hits_table <- function(all_species) {
   
-  num_columns = length(species)
+  num_columns = length(all_species)
   num_genes = 19
   num_e_cutoffs = 4
   num_rows = num_genes * num_e_cutoffs
@@ -138,15 +138,15 @@ initialize_hits_table <- function(species) {
   }
   
   hits_table = matrix(0, nrow = num_rows, ncol = num_columns)
-  colnames(hits_table) <- species
+  colnames(hits_table) <- sapply(all_species, function(x) x[["name"]])
   rownames(hits_table) <- gene_e_names
   
   return(hits_table)
 }
 
-fill_hits <- function(species, hits) {
-  for (s in species) {
-    files <- get_species_files(s)
+fill_hits <- function(all_species, hits) {
+  for (s in all_species) {
+    files <- get_species_files(s$name)
     
     for ( f in files ) {
       data <- read.csv(f, header=FALSE, sep="\t")
@@ -157,7 +157,7 @@ fill_hits <- function(species, hits) {
       for ( e in e_cutoffs ) {
         num_hits <- length(data.e[data.e<=10^-e])
         gene_e_name <- get_gene_e_name(gene_name, e)
-        hits[gene_e_name, s] <- num_hits
+        hits[gene_e_name, s$name] <- num_hits
       }
     } 
   }
@@ -165,10 +165,9 @@ fill_hits <- function(species, hits) {
   return(hits)
 }
 
-empty_hits <- initialize_hits_table(species)
+empty_hits <- initialize_hits_table(all_species)
 gene_names <- get_gene_names()
-hits <- fill_hits(species, empty_hits)
-
+hits <- fill_hits(all_species, empty_hits)
 
 ```
 
@@ -198,10 +197,10 @@ ref.hits <- hits
 # marker length in bp
 marker.length <- 80*3                            
 # G.size <- colMeans( genome.size )        
-G.size <- c(2110508336, 2405352861, 2192934624, 2192934796)  # assembly size estimated from k=31-91, s=2 (kmergenie)
+G.size <- sapply(all_species, function(x) x[["G.size"]])   # assembly size estimated from k=31-91, s=2 (kmergenie)
 n.species <- ncol( ref.hits )                       # number of species observed 
 n.ref <- length( uref )                          # number of reference markers/genes
-N.reads <- c(1121237882, 877225626, 891832240, 691832240)   # N of concatenated raw PE reads (~100bp)
+N.reads <- sapply(all_species, function(x) x[["N.reads"]])   # N of concatenated raw PE reads (~100bp)
 cuts <- c(-4,-6,-8,-10)
 cat( "   we have data for", n.ref, "reference markers\n" )
 cat( "   we have data for", n.species, "species\n" )
@@ -262,14 +261,6 @@ x <- sapply( 1:n.ref, function(i){
 } )
 
 
-### Manual curation
-### These two references were discarded in the end because they are
-### probably too closely linked (physical position) to some other references
-# ref.keep[,2] <- FALSE  # Ref 1b is OUT
-# ref.keep[,7] <- FALSE  # Ref 2d is OUT
-
-
-
 ### Next, checking which reference genes have read-hits that
 ### cannot be explained by the cutoff-model.
 ### In short, we expect that as the blast-cutoff is made stricter, the
@@ -323,16 +314,6 @@ x <- sapply( 1:n.ref, function(i){
 } )
 
 
-### Manual curation again
-### Fish 21 suffers from having too few reference markers in the 
-### analysis above. Inspect the plot for fish_21, it looks fine!
-### We decide to keep reference 8 and 13 even if they are
-### excluded in the procedure above.
-# ref.keep[21,14] <- TRUE  # Ref 8 is IN
-# ref.keep[21,20] <- TRUE  # Ref 13 is IN
-
-
-
 ### Third, eliminating reference genes that still estimate 
 ### to 0 copies, as these will blow the other copy number 
 ### estimates sky high later...
@@ -360,4 +341,113 @@ x <- sapply( 1:n.ref, function(i){
 save( ref.keep, file="res/ref_keep.RData" )
 
 ```
+
+
+## Script 2 of the procedure.
+
+You need to run script1 prior to this.
+Here we estimate the reference markers copy numbers.
+
+* Step 1 - Point estimates
+* Step 2 - Bootstrapping 
+
+
+```{r script2_ref_bootstraps_mammals}
+
+options( stringsAsFactors = FALSE )
+#source( "copynumfun.R" )
+#source( "hits_table_generator.R" )
+
+### Loads data and print summary
+cat( "Loading data...\n" )
+load( "res/ref_keep.RData" )
+uref <- gene_names
+ref.hits <- hits
+n.species <- ncol( ref.hits )                         # N of species observed 
+n.ref <- length( uref )                            # N of reference markers/genes
+cuts <- c(-4,-6,-8,-10)
+cat( "   we have data for", n.ref, "reference markers\n" )
+cat( "   we have data for", n.species, "species\n" )
+cat( "   reference markers are", marker.length, "bases long\n" )
+x <- sapply( 1:n.species, function(i){
+  cat(colnames(ref.hits)[i], "has", G.size[i],"basepairs and",N.reads[i],"reads\n")
+} )
+
+
+### Point estimates of reference marker copy number in each species
+### are based on read-counts and ALL reference markers for the specific species.
+### The matrix ref.point contains one row for each species(__ rows)
+### and one column for each marker (19), but since some
+### markers have been excluded for the various species (see script1)
+### there are some NA in the matrix.
+
+# point estimation uses sample data to calculate a single value to serve as a best guess of copy numbers for sp.
+ref.point <- matrix( NA, nrow=ncol(ref.hits), ncol=n.ref )
+rownames( ref.point ) <- names( G.size )
+colnames( ref.point ) <- uref
+for( ss in 1:n.species ){
+  cat( rownames(ref.point)[ss], ":\n" )
+  # same as C <- coverage[ss] 
+  C <- (N.reads[ss]*marker.length)/G.size[ss]         # coverage for this species
+  idx.in <- which( ref.keep[ss,] )                    # indices of ref. genes used for this species
+  n.in <- length( idx.in )                            # number of ref. genes used for this sp.
+  # all observed hits for this sp., columns = ref.genes, rows = 4 cutoffs
+  y.mat <- matrix( ref.hits[,ss], nrow=4, ncol=n.ref, byrow=F )
+  y.mat <- y.mat[,idx.in]                             # hits for kept ref. genes for this sp.
+  lst <- copynum.iter.iter( y.mat, C, rep( 1, n.in ), as.integer=FALSE )
+  # estimated copy number for all kept ref. genes for this sp.
+  ref.point[ss,idx.in] <- lst$Gamma
+}
+save( ref.point, file="res/ref_point.RData" )
+boxplot(ref.point,las=2,pch=16,ylab="Reference marker copy number")
+
+
+
+### The bootstrap procedure
+
+# The difference to the point estimate above is that
+# estimates are based on a bootstrap-sample of the reference
+# markers for current species (not all markers), and this is repeated 1000 times.
+### When estimating the copy number for marker g, this marker must of course
+# be included, but the OTHER markers are bootstrapped 1000 times, and this
+# is repeated for every marker for each species.
+### The 3-dimensional array ref.boot stores the results.
+
+# phi.hat - normalized average number of observed ref. gene hits for each cutoff for this sp.
+# aka estimated stringency factor Fs with a hat (^)
+phi.hat <- matrix( -1, nrow=4, ncol=n.species )
+rownames( phi.hat ) <- paste( "log10(E)=", cuts, sep="" ) # gives names to stringency rows 
+colnames( phi.hat ) <- colnames( ref.hits )
+N.boot <- 1000
+# 3-dim array
+ref.boot <- array( NA, dim=c(n.species, n.ref, N.boot), dimnames=list( Species=names(G.size), REF=uref, Boot=1:N.boot ) )
+for( ss in 1:n.species ){
+  cat( rownames(ref.point)[ss] )
+  C <- (N.reads[ss]*marker.length)/G.size[ss]
+  y.mat <- matrix( ref.hits[,ss], nrow=4, ncol=n.ref, byrow=F )
+  idx.in <- which( ref.keep[ss,] )
+  y.mat <- y.mat[,idx.in]
+  n.in <- length( idx.in )
+  for( g in 1:n.in ){
+    idb <- which( 1:n.in != g )    # randomly sampled g-1 genes from the ref.keep for this sp.
+    for( b in 1:N.boot ){
+      # indices of sampled g-1 genes with replacement
+      idx.boot <- c( g, sample( idb, size=(n.in-1), replace=TRUE ) ) 
+      y.boot <- y.mat[,idx.boot]    # randomized observed ref. hits regarding indices in idx.boot
+      lst <- copynum.iter.iter( y.boot, C, rep( 1, n.in ), max.iter=10, as.integer=FALSE, verbose=FALSE )
+      ref.boot[ss,idx.in[g],b] <- lst$Gamma[1]  # boot. estimate for this marker g for this sp.
+    }
+    cat( "." )
+  }
+  cat( "\n" )
+}
+
+save( ref.boot, file="res/ref_boot.RData" )
+boxplot(t(ref.boot[3,,]), ylim=c(0,4), las=2,ylab="Reference marker copy number")
+abline(h=1)
+
+```
+
+
+
 
